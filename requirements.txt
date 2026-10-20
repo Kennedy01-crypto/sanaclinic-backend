@@ -1,0 +1,10 @@
+Django==5.2.18
+djangorestframework==3.18.3
+django-cors-headers==4.9.0
+djangorestframework-simplejwt==5.5.1
+drf-spectacular==0.30.0
+psycopg[binary]==3.3.6
+python-dotenv==1.1.1
+pytest==9.1.1
+pytest-django==4.14.0
+Faker==40.43.0
