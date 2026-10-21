@@ -1,33 +1,84 @@
-# Backend
+# Clinic Booking Backend
 
-The backend is a Django REST Framework API for patient accounts, doctors, weekly schedules, and appointments.
+The backend is a Django REST Framework API for patient accounts, doctors, weekly schedules, and appointments. It uses PostgreSQL and serves JSON endpoints under `/api/`.
 
-## Tech stack
+## System Design
 
-- Python
-- Django 5.2
-- Django REST Framework
-- Simple JWT for JWT authentication
-- `django-cors-headers` for cross-origin configuration
-- `drf-spectacular` for OpenAPI schema and Swagger UI
-- PostgreSQL via `DATABASE_URL` (required)
+The backend is organized as a Django project with three domain apps. Each app owns its models, serializers, routes, and API views. Django REST Framework handles API requests, authentication, and permissions; PostgreSQL stores application data.
 
-Pinned Python dependencies are listed in [requirements.txt](./requirements.txt). The project timezone is `Africa/Nairobi`.
+```text
+Client
+  └── Django REST Framework API
+       ├── accounts      — patient accounts, authentication, staff patient management
+       ├── doctors       — doctor directory, recurring weekly schedules, availability
+       └── appointments  — booking, cancellation, rescheduling, appointment history
+              └── PostgreSQL
+```
 
-## Applications
+Authentication uses Simple JWT. The API supports HttpOnly cookie authentication for the frontend and a token endpoint for bearer-token clients such as Swagger UI. Staff-only management endpoints use Django's staff permission. The clinic timezone is `Africa/Nairobi`.
 
-- `accounts`: custom user model, serializers, patient auth/profile endpoints, staff-only dashboard summary, and patient management endpoints.
-- `doctors`: doctor and recurring weekly schedule models, serializers, public availability, and staff-only doctor/schedule management endpoints.
-- `appointments`: appointment model, booking, cancellation, rescheduling, patient history, and staff appointment management endpoints.
-- `clinic_backend`: Django project settings, URL configuration, ASGI/WSGI entry points, and cookie JWT authentication.
+## Models & Components
 
-See [STRUCTURE.md](./STRUCTURE.md) for the directory tree.
+### Data models
 
-## Run
+- **User** (`accounts`): extends Django's `AbstractUser`; adds unique email, phone, date of birth, and emergency contact fields. Staff status determines whether the API treats the account as an administrator.
+- **Doctor** (`doctors`): stores a doctor's name, specialty, active status, and timestamps. Doctors are records, not user login accounts.
+- **WeeklySchedule** (`doctors`): stores a doctor's recurring weekday working period. Periods must have a start before the end and align to 30-minute slots.
+- **Appointment** (`appointments`): links a patient and doctor to a start and end time. Its status is booked or cancelled; cancellation reason and timestamp are retained. Database indexes support common doctor- and patient-time queries.
 
-Configure `backend/.env` with a PostgreSQL `DATABASE_URL` first. SQLite fallback is disabled so management commands cannot silently create a local database.
+### Application components
 
-From this directory, create/activate a virtual environment, install dependencies, apply migrations, and start Django:
+- **`accounts`**: registration, login/token refresh/logout, profile and password operations, plus staff dashboard and patient management APIs.
+- **`doctors`**: public doctor listing and availability, plus staff doctor and schedule management APIs.
+- **`appointments`**: patient booking, cancellation, rescheduling, and appointment history, plus staff appointment management.
+- **`clinic_backend`**: Django settings, URL configuration, cookie JWT authentication, and ASGI/WSGI entry points.
+- **Django REST Framework**: JSON API, authentication and permissions, and request throttling.
+- **Simple JWT**: access and refresh tokens.
+- **drf-spectacular**: OpenAPI schema and Swagger UI.
+- **PostgreSQL**: required relational database, configured with `DATABASE_URL`.
+
+See [STRUCTURE.md](./STRUCTURE.md) for the backend directory layout.
+
+## Key Decisions Made
+
+- Use a custom user model from the start so patient-specific fields are part of the project's authentication model.
+- Use Django's existing `is_staff` flag to distinguish administrators from patients, and protect administrative APIs with staff permissions.
+- Represent doctors separately from login accounts because the current system does not provide doctor sign-in.
+- Store recurring weekly work periods and expose availability as configured 30-minute appointment slots.
+- Keep cancelled appointments as records with cancellation details instead of deleting booking history.
+- Require PostgreSQL through `DATABASE_URL`; SQLite fallback is disabled so local commands cannot silently use a different database.
+- Use JWTs in HttpOnly cookies for the frontend while retaining a bearer-token endpoint for API tools.
+- Generate the API schema and Swagger UI from the API definitions with `drf-spectacular`.
+
+## Trade-offs Considered
+
+- **A simpler built-in user model vs. a custom user model:** the custom model adds setup and migration responsibility, but avoids retrofitting patient fields and identity later.
+- **One staff flag vs. a separate role/permission model:** `is_staff` is simple for the current patient/admin roles, but it is less expressive if additional roles are introduced.
+- **Doctors as records vs. doctor accounts:** records keep the current scope focused on patient booking and staff management, but do not support doctor self-service.
+- **Recurring weekly schedules vs. date-specific availability:** weekly schedules are straightforward to manage, but do not represent holidays, exceptions, or one-off schedule changes.
+- **Fixed 30-minute slots vs. configurable appointment lengths:** fixed slots make availability and booking predictable, but constrain appointment duration and schedule granularity.
+- **PostgreSQL-only configuration vs. an SQLite development fallback:** requiring the production database engine locally reduces environment differences, but means local development and tests need PostgreSQL configuration.
+- **Retaining cancelled records vs. deleting them:** preserving history supports traceability, while requiring status-aware logic wherever availability or appointment lists are calculated.
+
+## Public URL of Deployed Application
+
+`https://<your-deployed-backend-url>` — placeholder; replace with the public backend URL after deployment.
+
+## CI/CD
+
+**Status:** No CI/CD workflow or production deployment configuration is currently included in this backend folder. The branch and pipeline below describe the proposed setup, not an active deployment.
+
+**Branch triggering deployment:** Proposed trigger is a push or merge to `main`. Pull requests should run validation checks without deploying. Configure the deployment provider with the required production environment variables and database credentials before enabling this trigger.
+
+**Pipeline description:** The proposed pipeline checks out the backend, installs the pinned Python dependencies, runs Django system checks and the test suite against a configured PostgreSQL database, then deploys the application when the `main` branch checks pass. Database migrations should be applied as part of the release process. No pipeline has been run or deployment verified yet.
+
+For a decoupled deployment, deploy the backend first and use its public URL when configuring the frontend. The default `ALLOWED_HOSTS` includes `.vercel.app`, `localhost`, and `127.0.0.1`; set the `ALLOWED_HOSTS` environment variable to override these defaults if needed. Set `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` to the exact frontend origin, including `https://`. Do not enable allow-all CORS for this cookie-authenticated API. In production, configure `DEBUG=False`, a private `DJANGO_SECRET_KEY`, and the PostgreSQL `DATABASE_URL` in the hosting provider's environment settings. This backend currently contains no Vercel/serverless adapter or deployment configuration; these settings alone do not configure a serverless runtime.
+
+## Local Development
+
+Configure a PostgreSQL connection in `backend/.env` using `DATABASE_URL`. The settings also read `DJANGO_SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `CSRF_TRUSTED_ORIGINS`. For local development set `DEBUG=True`; when `DEBUG=False`, `DJANGO_SECRET_KEY` must be explicitly configured. Do not commit secrets or use development settings in a public deployment.
+
+From this directory, create and activate a virtual environment, install dependencies, apply migrations, and start Django:
 
 ```powershell
 py -m venv .venv
@@ -37,16 +88,21 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-The full repository instructions are in [../RUN.md](../RUN.md).
+Run the backend checks and tests with the same PostgreSQL configuration:
 
-## Local API routes
+```powershell
+python manage.py check
+python manage.py test
+```
 
-Routes are currently mounted under `/api/` and use trailing slashes:
+## API Routes
+
+Routes are mounted under `/api/` and use trailing slashes:
 
 - `/api/accounts/register/`, `/api/accounts/login/`, `/api/accounts/refresh/`, `/api/accounts/logout/`
 - `/api/accounts/token/` (JWT pair for Swagger/API bearer authorization)
 - `/api/accounts/me/`, `/api/accounts/profile/`, `/api/accounts/change-password/`
-- `/api/accounts/admin/summary/` (staff only; role comes from Django `is_staff`)
+- `/api/accounts/admin/summary/` (staff only)
 - `/api/accounts/admin/patients/` and `/api/accounts/admin/patients/{id}/` (staff only)
 - `/api/doctors/`, `/api/doctors/{id}/`, `/api/doctors/{id}/availability/`
 - `/api/doctors/admin/doctors/`, `/api/doctors/admin/doctors/{id}/` (staff only)
@@ -54,13 +110,7 @@ Routes are currently mounted under `/api/` and use trailing slashes:
 - `/api/appointments/admin/` and `/api/appointments/admin/{id}/cancel/` (staff only)
 - `/api/appointments/`, `/api/appointments/{id}/cancel/`, `/api/appointments/{id}/reschedule/`
 - `/api/appointments/patients/{id}/appointments/`
-- `/api/docs/` and `/api/schema/`
-- `/admin/` for Django's built-in administrator interface.
+- `/api/docs/` (Swagger UI) and `/api/schema/` (OpenAPI schema)
+- `/admin/` (Django administrator interface)
 
-The doctor availability endpoint returns only configured 30-minute schedule slots, each with a `start_at` and a status of `available`, `booked`, or `unavailable`. Booked slots include no patient details; cancelled appointments release their slots. Booking is independently validated by the API.
-
-Swagger UI at `/api/docs/` supports JWT bearer authorization and persists the authorized token in browser storage. Use `/api/accounts/token/` with a username and password to obtain an access token, then click **Authorize** and provide the token. The normal `/api/accounts/login/` endpoint continues to use HttpOnly cookies for the frontend.
-
-Swagger groups API operations into Patient categories (Accounts, Doctors, Slots, and Appointments) followed by Admin categories (Dashboard, Patients, Doctors, Schedules, and Appointments). Admin operations require a staff account; patient appointment operations require authentication and apply to the signed-in patient.
-
-This is a description of current routes, not a guarantee that all assessment requirements or concurrency protections are complete.
+The availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. Booked slots do not expose patient details. Booking is validated by the API. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
