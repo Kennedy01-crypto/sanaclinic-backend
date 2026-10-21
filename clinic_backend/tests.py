@@ -12,3 +12,16 @@ class ApiRootViewTests(SimpleTestCase):
         self.assertContains(response, 'href="/admin/"')
         self.assertContains(response, 'href="/api/docs/"')
         self.assertContains(response, 'href="/api/schema/"')
+
+    def test_production_frontend_origin_is_allowed_for_cors(self):
+        response = self.client.options(
+            "/api/accounts/me/",
+            HTTP_ORIGIN="https://sanaclinic-frontend.vercel.app",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="GET",
+        )
+
+        self.assertEqual(
+            response["Access-Control-Allow-Origin"],
+            "https://sanaclinic-frontend.vercel.app",
+        )
+        self.assertEqual(response["Access-Control-Allow-Credentials"], "true")

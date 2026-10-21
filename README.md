@@ -96,7 +96,7 @@ Required settings include
 
 `CSRF_TRUSTED_ORIGINS`, and PostgreSQL `DATABASE_URL`. 
 
-The default `ALLOWED_HOSTS` includes `.vercel.app`, `localhost`, and `127.0.0.1`; an explicit environment value overrides it.
+The default `ALLOWED_HOSTS` includes `.vercel.app`, `localhost`, and `127.0.0.1`; an explicit environment value overrides it. The `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` settings allow `https://sanaclinic-frontend.vercel.app` and normalize trailing slashes. Environment values can add other origins; the production frontend origin remains allowed.
 
 The decoupled frontend uses
 
