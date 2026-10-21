@@ -62,17 +62,47 @@ See [STRUCTURE.md](./STRUCTURE.md) for the backend directory layout.
 
 ## Public URL of Deployed Application
 
-`https://<your-deployed-backend-url>` — placeholder; replace with the public backend URL after deployment.
+- **Backend API:** https://sanaclinic-backend.vercel.app/
+- **Swagger UI:** https://sanaclinic-backend.vercel.app/api/docs/
+- **OpenAPI schema:** https://sanaclinic-backend.vercel.app/api/schema/
+- **Django Admin:** https://sanaclinic-backend.vercel.app/admin/
 
 ## CI/CD
 
-**Status:** No CI/CD workflow or production deployment configuration is currently included in this backend folder. The branch and pipeline below describe the proposed setup, not an active deployment.
+The GitHub Actions workflow is [`.github/workflows/ci-cd.yml`](./.github/workflows/ci-cd.yml).
 
-**Branch triggering deployment:** Proposed trigger is a push or merge to `main`. Pull requests should run validation checks without deploying. Configure the deployment provider with the required production environment variables and database credentials before enabling this trigger.
+**1. Branch and deployment:** 
 
-**Pipeline description:** The proposed pipeline checks out the backend, installs the pinned Python dependencies, runs Django system checks and the test suite against a configured PostgreSQL database, then deploys the application when the `main` branch checks pass. Database migrations should be applied as part of the release process. No pipeline has been run or deployment verified yet.
+GitHub Actions runs backend checks on pull requests targeting `main` and on pushes to `main`. Vercel's Git integration deploys production from `main` after changes are pushed or merged. GitHub Actions only validates the code; it does not deploy.
 
-For a decoupled deployment, deploy the backend first and use its public URL when configuring the frontend. The default `ALLOWED_HOSTS` includes `.vercel.app`, `localhost`, and `127.0.0.1`; set the `ALLOWED_HOSTS` environment variable to override these defaults if needed. Set `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` to the exact frontend origin, including `https://`. Do not enable allow-all CORS for this cookie-authenticated API. In production, configure `DEBUG=False`, a private `DJANGO_SECRET_KEY`, and the PostgreSQL `DATABASE_URL` in the hosting provider's environment settings. This backend currently contains no Vercel/serverless adapter or deployment configuration; these settings alone do not configure a serverless runtime.
+**2. Pipeline:** 
+
+Actions starts a PostgreSQL service, installs the pinned Python dependencies, runs `manage.py check`, and runs the Django test suite. No Vercel credentials or deployment secrets are needed in GitHub Actions.
+
+Protect the `main` branch and require the `test` status check before allowing pull requests to merge. This makes successful checks a merge requirement; direct pushes to `main` should be disallowed if every production change must pass the checks.
+
+`3.Production environment variables`
+
+These are configured in the Vercel project settings. 
+Required settings include 
+
+`DJANGO_SECRET_KEY`, 
+
+`DEBUG=False`, 
+
+`ALLOWED_HOSTS`, 
+
+`CORS_ALLOWED_ORIGINS`, 
+
+`CSRF_TRUSTED_ORIGINS`, and PostgreSQL `DATABASE_URL`. 
+
+The default `ALLOWED_HOSTS` includes `.vercel.app`, `localhost`, and `127.0.0.1`; an explicit environment value overrides it.
+
+The decoupled frontend uses
+
+`NEXT_PUBLIC_API_URL=https://sanaclinic-backend.vercel.app/api` and 
+
+`NEXT_PUBLIC_DJANGO_URL=https://sanaclinic-backend.vercel.app`
 
 ## Local Development
 
