@@ -1,6 +1,6 @@
 # AI Reflection
 
-> This reflection describes AI's role in preparing the backend submission documentation. It does not claim that AI created or reviewed earlier application code. Update any statements that do not match your own experience.
+
 
 ## Part 1: What I Used AI For
 
