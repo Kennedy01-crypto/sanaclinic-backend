@@ -96,17 +96,25 @@ python manage.py test
 
 Routes are mounted under `/api/` and use trailing slashes:
 
+## Accounts
+
 - `/api/accounts/register/`, `/api/accounts/login/`, `/api/accounts/refresh/`, `/api/accounts/logout/`
 - `/api/accounts/token/` (JWT pair for Swagger/API bearer authorization)
 - `/api/accounts/me/`, `/api/accounts/profile/`, `/api/accounts/change-password/`
 - `/api/accounts/admin/summary/` (staff only)
 - `/api/accounts/admin/patients/` and `/api/accounts/admin/patients/{id}/` (staff only)
+
+## Doctors
 - `/api/doctors/`, `/api/doctors/{id}/`, `/api/doctors/{id}/availability/`
 - `/api/doctors/admin/doctors/`, `/api/doctors/admin/doctors/{id}/` (staff only)
 - `/api/doctors/admin/schedules/`, `/api/doctors/admin/schedules/{id}/` (staff only)
+
+## Apointments
 - `/api/appointments/admin/` and `/api/appointments/admin/{id}/cancel/` (staff only)
 - `/api/appointments/`, `/api/appointments/{id}/cancel/`, `/api/appointments/{id}/reschedule/`
 - `/api/appointments/patients/{id}/appointments/`
+
+## Documentation
 - `/api/docs/` (Swagger UI) and `/api/schema/` (OpenAPI schema)
 - `/admin/` (Django administrator interface)
 
