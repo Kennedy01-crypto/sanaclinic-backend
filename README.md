@@ -105,7 +105,7 @@ Routes are mounted under `/api/` and use trailing slashes:
 - `/api/accounts/admin/patients/` and `/api/accounts/admin/patients/{id}/` (staff only)
 
 ## Doctors
-- `/api/doctors/`, `/api/doctors/{id}/`, `/api/doctors/{id}/availability/`
+- `/api/doctors/`, `/api/doctors/{id}/`, `/api/doctors/{id}/availability/`, `/api/doctors/{id}/availability/month/`
 - `/api/doctors/admin/doctors/`, `/api/doctors/admin/doctors/{id}/` (staff only)
 - `/api/doctors/admin/schedules/`, `/api/doctors/admin/schedules/{id}/` (staff only)
 
@@ -118,7 +118,7 @@ Routes are mounted under `/api/` and use trailing slashes:
 - `/api/docs/` (Swagger UI) and `/api/schema/` (OpenAPI schema)
 - `/admin/` (Django administrator interface)
 
-The availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. Booked slots do not expose patient details. PostgreSQL exclusion constraints prevent overlapping booked appointments for the same doctor or patient, including concurrent requests; a conflict returns HTTP 409. Patient appointment history includes only future booked appointments, sorted by start time. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
+The daily availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. The monthly endpoint returns each date in the requested `YYYY-MM` month with its slots, allowing the booking calendar to highlight dates that have at least one available slot in a single request. Authenticated patients also see their own overlapping appointments as unavailable. Booked slots do not expose patient details. PostgreSQL exclusion constraints prevent overlapping booked appointments for the same doctor or patient, including concurrent requests; a conflict returns HTTP 409. Patient appointment history includes only future booked appointments, sorted by start time. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
 
 ## SECTION 3: DEPLOYMENT & CI/CD
 

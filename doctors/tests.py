@@ -82,6 +82,38 @@ class DoctorAvailabilityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, [])
 
+    def test_month_availability_returns_daily_slots_and_personal_conflicts(self):
+        self.client.force_authenticate(self.patient)
+        response = self.client.get(
+            f"/api/doctors/{self.doctor.id}/availability/month/",
+            {"month": self.clinic_date.strftime("%Y-%m")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        day = next(
+            item for item in response.data
+            if item["date"] == self.clinic_date.isoformat()
+        )
+        self.assertEqual(
+            [slot["status"] for slot in day["slots"]],
+            ["available", "booked", "available"],
+        )
+        month_start = date(self.clinic_date.year, self.clinic_date.month, 1)
+        if month_start.month == 12:
+            next_month = date(month_start.year + 1, 1, 1)
+        else:
+            next_month = date(month_start.year, month_start.month + 1, 1)
+        self.assertEqual(len(response.data), (next_month - month_start).days)
+
+    def test_month_availability_rejects_invalid_month(self):
+        response = self.client.get(
+            f"/api/doctors/{self.doctor.id}/availability/month/",
+            {"month": "2026-13"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["detail"], "Invalid month format. Use YYYY-MM.")
+
     def test_staff_can_manage_doctors_and_schedules(self):
         admin = User.objects.create_superuser(
             username="doctor-admin",
