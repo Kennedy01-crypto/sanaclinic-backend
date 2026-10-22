@@ -1,5 +1,8 @@
 from django.conf import settings
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateTimeRangeField, RangeOperators
 from django.db import models
+from django.db.models import F, Func, Q
 
 from doctors.models import Doctor
 
@@ -27,6 +30,40 @@ class Appointment(models.Model):
         indexes = [
             models.Index(fields=["doctor", "start_at", "end_at"]),
             models.Index(fields=["patient", "start_at", "end_at"]),
+        ]
+        constraints = [
+            ExclusionConstraint(
+                name="no_overlapping_booked_doctor_appointments",
+                expressions=[
+                    (F("doctor"), RangeOperators.EQUAL),
+                    (
+                        Func(
+                            F("start_at"),
+                            F("end_at"),
+                            function="TSTZRANGE",
+                            output_field=DateTimeRangeField(),
+                        ),
+                        RangeOperators.OVERLAPS,
+                    ),
+                ],
+                condition=Q(status="booked"),
+            ),
+            ExclusionConstraint(
+                name="no_overlapping_booked_patient_appointments",
+                expressions=[
+                    (F("patient"), RangeOperators.EQUAL),
+                    (
+                        Func(
+                            F("start_at"),
+                            F("end_at"),
+                            function="TSTZRANGE",
+                            output_field=DateTimeRangeField(),
+                        ),
+                        RangeOperators.OVERLAPS,
+                    ),
+                ],
+                condition=Q(status="booked"),
+            ),
         ]
 
     def __str__(self):

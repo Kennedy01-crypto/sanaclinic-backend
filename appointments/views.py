@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
@@ -66,6 +66,15 @@ CLINIC_TZ = ZoneInfo("Africa/Nairobi")
 SLOT_MINUTES = 30
 
 
+class BookingConflict(Exception):
+    pass
+
+
+def _is_exclusion_violation(error):
+    cause = error.__cause__
+    return getattr(cause, "sqlstate", getattr(cause, "pgcode", None)) == "23P01"
+
+
 def _validate_booking_request(doctor_id, start_at, patient, exclude_appointment_id=None):
     try:
         doctor = Doctor.objects.get(pk=doctor_id)
@@ -107,7 +116,7 @@ def _validate_booking_request(doctor_id, start_at, patient, exclude_appointment_
     if exclude_appointment_id:
         overlapping_doctor = overlapping_doctor.exclude(pk=exclude_appointment_id)
     if overlapping_doctor.exists():
-        raise ValueError("This doctor slot is already occupied.")
+        raise BookingConflict("This doctor slot is already occupied.")
 
     overlapping_patient = Appointment.objects.filter(
         patient=patient,
@@ -116,7 +125,7 @@ def _validate_booking_request(doctor_id, start_at, patient, exclude_appointment_
     if exclude_appointment_id:
         overlapping_patient = overlapping_patient.exclude(pk=exclude_appointment_id)
     if overlapping_patient.exists():
-        raise ValueError("This patient already has an appointment at that time.")
+        raise BookingConflict("This patient already has an appointment at that time.")
 
     return doctor, start_local, appointment_end
 
@@ -144,16 +153,26 @@ def create_appointment(request):
 
     try:
         doctor, start_local, end_local = _validate_booking_request(doctor_id, start_dt, request.user)
+    except BookingConflict as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    with transaction.atomic():
-        appointment = Appointment.objects.create(
-            patient=request.user,
-            doctor=doctor,
-            start_at=start_local,
-            end_at=end_local,
-        )
+    try:
+        with transaction.atomic():
+            appointment = Appointment.objects.create(
+                patient=request.user,
+                doctor=doctor,
+                start_at=start_local,
+                end_at=end_local,
+            )
+    except IntegrityError as exc:
+        if _is_exclusion_violation(exc):
+            return Response(
+                {"detail": "This appointment slot is no longer available."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        raise
     serializer = AppointmentSerializer(appointment)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -290,13 +309,24 @@ def reschedule_appointment(request, appointment_id):
 
     try:
         _, start_local, end_local = _validate_booking_request(appointment.doctor_id, new_start, request.user, exclude_appointment_id=appointment.id)
+    except BookingConflict as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     original_start = appointment.start_at
     appointment.start_at = start_local
     appointment.end_at = end_local
-    appointment.save(update_fields=["start_at", "end_at", "updated_at"])
+    try:
+        with transaction.atomic():
+            appointment.save(update_fields=["start_at", "end_at", "updated_at"])
+    except IntegrityError as exc:
+        if _is_exclusion_violation(exc):
+            return Response(
+                {"detail": "This appointment slot is no longer available."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        raise
     return Response({"detail": "Appointment rescheduled successfully.", "previous_start_at": original_start.isoformat(), "new_start_at": start_local.isoformat()}, status=status.HTTP_200_OK)
 
 
@@ -313,7 +343,11 @@ def patient_appointments(request, patient_id):
     if int(patient_id) != int(request.user.id):
         return Response({"detail": "You are not allowed to view other patients' appointments."}, status=status.HTTP_403_FORBIDDEN)
 
-    appointments = Appointment.objects.filter(patient_id=patient_id).order_by("start_at")
+    appointments = Appointment.objects.filter(
+        patient_id=patient_id,
+        status=Appointment.STATUS_BOOKED,
+        start_at__gt=timezone.now(),
+    ).order_by("start_at")
     serializer = AppointmentSerializer(appointments, many=True)
     return Response(serializer.data)
 

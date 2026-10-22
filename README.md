@@ -118,7 +118,7 @@ Routes are mounted under `/api/` and use trailing slashes:
 - `/api/docs/` (Swagger UI) and `/api/schema/` (OpenAPI schema)
 - `/admin/` (Django administrator interface)
 
-The availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. Booked slots do not expose patient details. Booking is validated by the API. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
+The availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. Booked slots do not expose patient details. PostgreSQL exclusion constraints prevent overlapping booked appointments for the same doctor or patient, including concurrent requests; a conflict returns HTTP 409. Patient appointment history includes only future booked appointments, sorted by start time. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
 
 ## SECTION 3: DEPLOYMENT & CI/CD
 
