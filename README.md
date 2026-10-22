@@ -1,8 +1,10 @@
-# Clinic Booking Backend
+# Clinic Booking Backend System
 
 The backend is a Django REST Framework API for patient accounts, doctors, weekly schedules, and appointments. It uses PostgreSQL and serves JSON endpoints under `/api/`.
 
-## System Design
+## SECTION 1: System Design
+
+`NOTE:` Find more detailed System design Documentation in [STRUCTURE.md](./STRUCTURE.md)
 
 The backend is organized as a Django project with three domain apps. Each app owns its models, serializers, routes, and API views. Django REST Framework handles API requests, authentication, and permissions; PostgreSQL stores application data.
 
@@ -67,7 +69,51 @@ See [STRUCTURE.md](./STRUCTURE.md) for the backend directory layout.
 - **OpenAPI schema:** https://sanaclinic-backend.vercel.app/api/schema/
 - **Django Admin:** https://sanaclinic-backend.vercel.app/admin/
 
-## CI/CD
+
+
+## Local Development
+
+Configure a PostgreSQL connection in `backend/.env` using `DATABASE_URL`. The settings also read `DJANGO_SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `CSRF_TRUSTED_ORIGINS`. For local development set `DEBUG=True`; when `DEBUG=False`, `DJANGO_SECRET_KEY` must be explicitly configured. Do not commit secrets or use development settings in a public deployment.
+
+From this directory, create and activate a virtual environment, install dependencies, apply migrations, and start Django:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+Run the backend checks and tests with the same PostgreSQL configuration:
+
+```powershell
+python manage.py check
+python manage.py test
+```
+
+## SECTION 2: API Routes
+
+Routes are mounted under `/api/` and use trailing slashes:
+
+- `/api/accounts/register/`, `/api/accounts/login/`, `/api/accounts/refresh/`, `/api/accounts/logout/`
+- `/api/accounts/token/` (JWT pair for Swagger/API bearer authorization)
+- `/api/accounts/me/`, `/api/accounts/profile/`, `/api/accounts/change-password/`
+- `/api/accounts/admin/summary/` (staff only)
+- `/api/accounts/admin/patients/` and `/api/accounts/admin/patients/{id}/` (staff only)
+- `/api/doctors/`, `/api/doctors/{id}/`, `/api/doctors/{id}/availability/`
+- `/api/doctors/admin/doctors/`, `/api/doctors/admin/doctors/{id}/` (staff only)
+- `/api/doctors/admin/schedules/`, `/api/doctors/admin/schedules/{id}/` (staff only)
+- `/api/appointments/admin/` and `/api/appointments/admin/{id}/cancel/` (staff only)
+- `/api/appointments/`, `/api/appointments/{id}/cancel/`, `/api/appointments/{id}/reschedule/`
+- `/api/appointments/patients/{id}/appointments/`
+- `/api/docs/` (Swagger UI) and `/api/schema/` (OpenAPI schema)
+- `/admin/` (Django administrator interface)
+
+The availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. Booked slots do not expose patient details. Booking is validated by the API. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
+
+## SECTION 3: DEPLOYMENT & CI/CD
+
 
 The GitHub Actions workflow is [`.github/workflows/ci-cd.yml`](./.github/workflows/ci-cd.yml).
 
@@ -75,7 +121,7 @@ The GitHub Actions workflow is [`.github/workflows/ci-cd.yml`](./.github/workflo
 
 GitHub Actions runs backend checks on pull requests targeting `main` and on pushes to `main`. Vercel's Git integration deploys production from `main` after changes are pushed or merged. GitHub Actions only validates the code; it does not deploy.
 
-**2. Pipeline:** 
+**2. CI/CD Pipeline:** 
 
 Actions starts a PostgreSQL service, installs the pinned Python dependencies, runs `manage.py check`, and runs the Django test suite. No Vercel credentials or deployment secrets are needed in GitHub Actions.
 
@@ -104,43 +150,5 @@ The decoupled frontend uses
 
 `NEXT_PUBLIC_DJANGO_URL=https://sanaclinic-backend.vercel.app`
 
-## Local Development
-
-Configure a PostgreSQL connection in `backend/.env` using `DATABASE_URL`. The settings also read `DJANGO_SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `CSRF_TRUSTED_ORIGINS`. For local development set `DEBUG=True`; when `DEBUG=False`, `DJANGO_SECRET_KEY` must be explicitly configured. Do not commit secrets or use development settings in a public deployment.
-
-From this directory, create and activate a virtual environment, install dependencies, apply migrations, and start Django:
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
-
-Run the backend checks and tests with the same PostgreSQL configuration:
-
-```powershell
-python manage.py check
-python manage.py test
-```
-
-## API Routes
-
-Routes are mounted under `/api/` and use trailing slashes:
-
-- `/api/accounts/register/`, `/api/accounts/login/`, `/api/accounts/refresh/`, `/api/accounts/logout/`
-- `/api/accounts/token/` (JWT pair for Swagger/API bearer authorization)
-- `/api/accounts/me/`, `/api/accounts/profile/`, `/api/accounts/change-password/`
-- `/api/accounts/admin/summary/` (staff only)
-- `/api/accounts/admin/patients/` and `/api/accounts/admin/patients/{id}/` (staff only)
-- `/api/doctors/`, `/api/doctors/{id}/`, `/api/doctors/{id}/availability/`
-- `/api/doctors/admin/doctors/`, `/api/doctors/admin/doctors/{id}/` (staff only)
-- `/api/doctors/admin/schedules/`, `/api/doctors/admin/schedules/{id}/` (staff only)
-- `/api/appointments/admin/` and `/api/appointments/admin/{id}/cancel/` (staff only)
-- `/api/appointments/`, `/api/appointments/{id}/cancel/`, `/api/appointments/{id}/reschedule/`
-- `/api/appointments/patients/{id}/appointments/`
-- `/api/docs/` (Swagger UI) and `/api/schema/` (OpenAPI schema)
-- `/admin/` (Django administrator interface)
-
-The availability endpoint returns configured 30-minute slots with a start time and `available`, `booked`, or `unavailable` status. Booked slots do not expose patient details. Booking is validated by the API. Swagger UI supports bearer authorization; the normal login endpoint continues to use HttpOnly cookies for the frontend.
+## SECTION 4: AI REFLECTION
+See [AI_REFLECTION.md](./AI_REFLECTION.md) for the my AI usage reflection.

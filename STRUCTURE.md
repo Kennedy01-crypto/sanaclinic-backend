@@ -1,12 +1,15 @@
-# Backend structure
+# Sanaclinic Backend structure
 
-The backend directory contains a Django project with three domain apps.
+This system backend is designed as a Django project with three domain apps.
 
 ```text
 backend/
 ├── manage.py
 ├── requirements.txt
 ├── pytest.ini
+├── README.md                   # General system readme markdown file
+├── AI_REFLECTION.md            # My Ai usage reflection
+├── STRUCTURE.md                # System Design
 ├── .env                        # Local secrets and PostgreSQL connection URL (never commit)
 ├── clinic_backend/
 │   ├── __init__.py
@@ -64,4 +67,4 @@ python manage.py migrate
 python manage.py test
 ```
 
-See [README.md](./README.md) for route details and [../RUN.md](../RUN.md) for setup.
+See [README.md](./README.md) for route details.
